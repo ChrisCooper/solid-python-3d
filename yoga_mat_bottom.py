@@ -1,19 +1,20 @@
 from solid import *
 from solid.utils import *
 from math import cos, radians, sin, pi, tau
+import subprocess
 
 EPS = 0.01
 
-MAT_RADIUS = 16.5/2 # cm
-CUP_THICKNESS = 1
-CUP_DEPTH = 2
+MAT_RADIUS = 165/2.0 # mm
+CUP_THICKNESS = 6
+CUP_DEPTH = 15
 CIRCLE_SEGMENTS = 64
-CUP_STRUT_WIDTH = 2
-CUTOUT_EDGE = 1 #CUP_THICKNESS * 1.5
+CUP_STRUT_WIDTH = 15
+CUTOUT_EDGE = 10 #CUP_THICKNESS * 1.5
 N_STRUTS = 5
 
-MOUNT_WIDTH = 2.1 * 2 # 2.1 for large command strip
-MOUNT_HEIGHT = 6.8 # 6.8 for large command strip
+MOUNT_WIDTH = 21 * 2 # 21 for large command strip
+MOUNT_HEIGHT = 68 # 68 for large command strip
 
 # DERIVED
 CUP_WALL_CENTER_RADIUS = MAT_RADIUS + CUP_THICKNESS
@@ -72,12 +73,15 @@ def ring():
     return extrude_along_path(cross_section, path)
 
 
-solid = cup_walls() + cup_bottom(cutout=True) + wall_mount() + up(CUP_DEPTH + CUP_THICKNESS)(ring())
+solid = cup_walls() + cup_bottom(cutout=False) + wall_mount() + up(CUP_DEPTH + CUP_THICKNESS)(ring())
 # solid = cup_shape()
 
 with open('bottom.scad', 'w') as f:
     f.write(scad_render(solid))
 
+subprocess.run(['C:\Program Files\OpenSCAD\openscad.com', '-o', 'bottom.stl', 'bottom.scad'])
+# 'C:\Program Files\OpenSCAD\openscad.exe' -o bottom.stl bottom.scad
+# 'C:\Program Files\OpenSCAD\openscad.com' -o bottom.stl bottom.scad
 
 #rotate_extrude(convexity = 10)
 #translate([2, 0, 0])
