@@ -7,14 +7,18 @@ EPS = 0.01
 
 MAT_RADIUS = 165/2.0 # mm
 CUP_THICKNESS = 6
-CUP_DEPTH = 15
-CIRCLE_SEGMENTS = 64
+CUP_DEPTH = 6
+CIRCLE_SEGMENTS = 256
 CUP_STRUT_WIDTH = 15
 CUTOUT_EDGE = 10 #CUP_THICKNESS * 1.5
 N_STRUTS = 5
+LIP_BASE_SCALE = 4
 
 MOUNT_WIDTH = 21 * 2 # 21 for large command strip
 MOUNT_HEIGHT = 68 # 68 for large command strip
+
+RAMP_UP_MAX_HEIGHT = 70 / CUP_THICKNESS
+RAMP_UP_FRACTION = 0.4
 
 # DERIVED
 CUP_WALL_CENTER_RADIUS = MAT_RADIUS + CUP_THICKNESS
@@ -66,14 +70,27 @@ def circle_points(radius, num_points=48):
     points = list([Point2(radius*cos(a), radius*sin(a)) for a in angles])
     return points
 
+def ring_transform(offset):
+    return lambda p, pn, ln: (p.x, p.y + offset, p.z)
+
 def ring():
     cross_section_radius = CUP_THICKNESS/2
     cross_section = circle_points(radius=cross_section_radius)
     path = circle_points(radius=CUP_WALL_CENTER_RADIUS - cross_section_radius, num_points=CIRCLE_SEGMENTS + 1)
-    return extrude_along_path(cross_section, path)
 
+    ramp_up_length = int((RAMP_UP_FRACTION * (CIRCLE_SEGMENTS+1)) // 2)
+    ramp_ups = [1 + RAMP_UP_MAX_HEIGHT*((i+1.0)/ramp_up_length)**2 for i in range(ramp_up_length)]
+    ramp_up_scale = [(1, LIP_BASE_SCALE - 1 + ru) for ru in ramp_ups]
+    scales = list(reversed(ramp_up_scale)) + [(1,LIP_BASE_SCALE) for i in range(CIRCLE_SEGMENTS+1 - ramp_up_length*2)] + ramp_up_scale
 
-solid = cup_walls() + cup_bottom(cutout=False) + wall_mount() + up(CUP_DEPTH + CUP_THICKNESS)(ring())
+    #ramp_up_transforms = [ring_transform(ru*1) for ru in ramp_ups]
+    #transforms = list(reversed(ramp_up_transforms)) + [ring_transform(0) for i in range(CIRCLE_SEGMENTS+1 - ramp_up_length*2)] + ramp_up_transforms
+
+    return rotate([0,0,-90])(extrude_along_path(cross_section, path, scales=scales))
+    #return rotate([0,0,-90])(extrude_along_path(cross_section, path, scales=scales, transforms=transforms))
+
+ring_solid = up(CUP_DEPTH + CUP_THICKNESS)(ring()) - down(49)(cube(size=[300, 300, 100], center=True))
+solid = cup_walls() + cup_bottom(cutout=True) + wall_mount() + ring_solid
 # solid = cup_shape()
 
 with open('bottom.scad', 'w') as f:
@@ -86,4 +103,5 @@ subprocess.run(['C:\Program Files\OpenSCAD\openscad.com', '-o', 'bottom.stl', 'b
 #rotate_extrude(convexity = 10)
 #translate([2, 0, 0])
 #circle(r = 1, $fn = 100);
+
 
