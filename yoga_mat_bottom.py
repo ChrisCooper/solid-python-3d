@@ -2,6 +2,7 @@ from solid import *
 from solid.utils import *
 from math import cos, radians, sin, pi, tau
 import subprocess
+import utils
 
 EPS = 0.01
 
@@ -65,18 +66,14 @@ def wall_mount():
         )
      
 
-def circle_points(radius, num_points=48):
-    angles = frange(0, tau, num_steps=num_points, include_end=True)
-    points = list([Point2(radius*cos(a), radius*sin(a)) for a in angles])
-    return points
 
 def ring_transform(offset):
     return lambda p, pn, ln: (p.x, p.y + offset, p.z)
 
 def ring():
     cross_section_radius = CUP_THICKNESS/2
-    cross_section = circle_points(radius=cross_section_radius)
-    path = circle_points(radius=CUP_WALL_CENTER_RADIUS - cross_section_radius, num_points=CIRCLE_SEGMENTS + 1)
+    cross_section = utils.circle_points(radius=cross_section_radius)
+    path = utils.circle_points(radius=CUP_WALL_CENTER_RADIUS - cross_section_radius, num_points=CIRCLE_SEGMENTS + 1)
 
     ramp_up_length = int((RAMP_UP_FRACTION * (CIRCLE_SEGMENTS+1)) // 2)
     ramp_ups = [1 + RAMP_UP_MAX_HEIGHT*((i+1.0)/ramp_up_length)**2 for i in range(ramp_up_length)]
