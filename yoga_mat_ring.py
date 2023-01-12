@@ -21,6 +21,7 @@ MOUNT_HEIGHT = 68 # 68 for large command strip
 RING_WALL_CENTER_RADIUS = MAT_RADIUS + RING_THICKNESS/2
 MAX_HEIGHT = RING_HEIGHT * LIP_BASE_SCALE * 3
 
+
 def mat_hole():
     return cylinder(r=MAT_RADIUS, h=MAX_HEIGHT*2, segments=CIRCLE_SEGMENTS, center=True)
 
@@ -37,7 +38,7 @@ def ring():
     #ramp_up_transforms = [ring_transform(ru*1) for ru in ramp_ups]
     #transforms = list(reversed(ramp_up_transforms)) + [ring_transform(0) for i in range(CIRCLE_SEGMENTS+1 - ramp_up_length*2)] + ramp_up_transforms
 
-    return rotate([0,0,-90])(extrude_along_path(cross_section, path, scales=scales))
+    return rotate([0,0,-90])(extrude_along_path(cross_section, path, scales=scales, connect_ends=True))
     #return rotate([0,0,-90])(extrude_along_path(cross_section, path, scales=scales, transforms=transforms))
 
 def wall_mount_cutout():
@@ -51,12 +52,15 @@ def wall_mount_cutout():
 def ring_point_caps():
     c = cube([MAX_HEIGHT, MAX_HEIGHT, MAX_HEIGHT], center=True)
     return back(RING_WALL_CENTER_RADIUS)(
-        up(MAX_HEIGHT/2 + MOUNT_HEIGHT/2)(c) + 
-        down(MAX_HEIGHT/2 + MOUNT_HEIGHT/2)(c)
+        up(MAX_HEIGHT/2 + MOUNT_HEIGHT/2)(c)
     )
-    
 
-solid = ring() - mat_hole() - wall_mount_cutout() - ring_point_caps()
+def base_cap():
+    return down(MAX_HEIGHT*5/2 + 11)(cube([MAX_HEIGHT*5, MAX_HEIGHT*5, MAX_HEIGHT*5], center=True))
+    
+EXTRA_SCALE = 100
+solid = scale(1/EXTRA_SCALE)(scale(EXTRA_SCALE)(ring()) - scale(EXTRA_SCALE)(mat_hole() + wall_mount_cutout() + ring_point_caps() + base_cap()))
+#solid = scale(1/EXTRA_SCALE)(scale(EXTRA_SCALE)(ring()))
 
 with open('ring.scad', 'w') as f:
     f.write(scad_render(solid))
