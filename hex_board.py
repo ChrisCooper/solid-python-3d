@@ -13,8 +13,20 @@ N_COLS = 2
 
 SPACER = 2
 
+NUM_SUB_HEXES_ACROSS = 3
+
+
 def hex():
-    return cylinder(d=MAX_DIAMETER+EPS, h=REFERENCE_HEIGHT, segments=6)
+    mini_diameter = (MAX_DIAMETER+EPS)/3
+    hex = cube(0)
+    hex += cylinder(d=MAX_DIAMETER+EPS, h=REFERENCE_HEIGHT, segments=6)
+    hex += cylinder(d=mini_diameter, h=REFERENCE_HEIGHT*1.1, segments=6)
+    hex += right(mini_diameter * 0.75)(
+            back(mini_diameter * HEX_LONG_TO_SHORT_RATIO / 2)(
+                cylinder(d=(MAX_DIAMETER+EPS)/3, h=REFERENCE_HEIGHT*1.1, segments=6)
+            )
+        )
+    return hex
 
 def row():
     row = cube(0)
