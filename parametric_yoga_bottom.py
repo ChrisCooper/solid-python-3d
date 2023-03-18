@@ -41,6 +41,7 @@ BOTTOM_FILENAME = 'yoga_mat_bottom_parametric'
 CIRCLE_SEGMENTS = 64
 EPS = 0.01
 
+MAKE_BOTTOM = False
 ACTUAL_MAT_DIAMETER = 155 # mm
 MAT_BUFFER_FRACTION_TOTAL = 0.06 # fairly comfortable
 
@@ -51,7 +52,7 @@ NUM_COMMAND_STRIPS = 2
 
 RING_WIDTH = 6 # mm
 MAX_RING_WIDTH = 12 # mm
-MIN_RING_HEIGHT = 8 # mm
+MIN_RING_HEIGHT = 16 # mm
 MAX_RING_HEIGHT = COMMAND_STRIP_HEIGHT + 7 # mm
 RING_SIGMOID_WINDOW_DISTANCE = 7.3 # Higher numbers mean a steeper curve
 RING_SIGMOID_WINDOW_BIAS = -3.3 # More negative means more of the ring is thin
@@ -59,6 +60,9 @@ RING_SIGMOID_WINDOW_BIAS = -3.3 # More negative means more of the ring is thin
 BOTTOM_THICKNESS = 5 # mm
 
 # DERIVED
+if MAKE_BOTTOM:
+    MIN_RING_HEIGHT = BOTTOM_THICKNESS
+
 MAT_DIAMETER = ACTUAL_MAT_DIAMETER * (1 + MAT_BUFFER_FRACTION_TOTAL)
 MAT_RADIUS = MAT_DIAMETER/2
 WALL_SIZE = (MAT_DIAMETER + RING_WIDTH) * 1.3
@@ -70,6 +74,8 @@ COMMAND_CUTOUT_PULL_EXTRA = 40 # mm
 RING_HEIGHT_DIFFERENCE = MAX_RING_HEIGHT - MIN_RING_HEIGHT/2
 MIN_RING_HALF_HEIGHT = MIN_RING_HEIGHT / 2
 RING_HALF_WIDTH = RING_WIDTH / 2
+
+MINKOWSKI_RADIUS=RING_WIDTH
 
 # WALLS
 wall_box = cube([WALL_SIZE, WALL_SIZE, WALL_SIZE], center = True)
@@ -94,13 +100,7 @@ def center_on_yoga_mat():
 
 
 # RING
-def get_ring(is_for_bottom=False):
-
-    min_ring_height = MIN_RING_HEIGHT
-    if is_for_bottom:
-        min_ring_height = BOTTOM_THICKNESS
-        MIN_RING_HALF_HEIGHT = min_ring_height / 2
-
+def get_ring():
     cross_section = utils.circle_points(num_points=CIRCLE_SEGMENTS/2)
     path = utils.circle_points(radius=MAT_RADIUS + RING_HALF_WIDTH, num_points=CIRCLE_SEGMENTS + 1)[:-1] # Don't include the last point, because connect_ends will bridge to the first one
 
@@ -117,7 +117,7 @@ def get_ring(is_for_bottom=False):
 
     # The scaling factor needs to be scales to the ring height difference
 
-    scales = [(lerp(RING_WIDTH, MAX_RING_WIDTH, horizontal_scale_factors[i]), lerp(min_ring_height, MAX_RING_HEIGHT, vertical_scale_factors[i])) for i in range(CIRCLE_SEGMENTS+1)]
+    scales = [(lerp(RING_WIDTH, MAX_RING_WIDTH, horizontal_scale_factors[i]), lerp(MIN_RING_HEIGHT, MAX_RING_HEIGHT, vertical_scale_factors[i])) for i in range(CIRCLE_SEGMENTS+1)]
     #scales = [(1, 1) for i in range(CIRCLE_SEGMENTS+1)]
 
     return extrude_along_path(cross_section, path, scales=scales, connect_ends=True)
@@ -131,31 +131,27 @@ ring = center_on_yoga_mat() (
     )
 )
 
-#ring = rotate([0, 0, 90])(get_ring())
 
-#bottom_ring = get_ring(is_for_bottom=True)
+def get_bottom():
+    return up(BOTTOM_THICKNESS/2 - EPS)(cylinder(r=MAT_RADIUS+RING_HALF_WIDTH, h=BOTTOM_THICKNESS, segments=CIRCLE_SEGMENTS, center=True))
+      
+bottom = center_on_yoga_mat()(
+    get_bottom()
+)
 
-# def get_bottom():
+def get_bottom_cutout():
 #     # BOTTOM
-#     MINKOWSKI_RADIUS=MIN_RING_WIDTH
-#     bottom_cutout = minkowski()(
-#         Shape(
-#             raw_shape = cylinder(r=MAT_RADIUS - MINKOWSKI_RADIUS, h=BOTTOM_THICKNESS, segments=CIRCLE_SEGMENTS, center=True),
-#             trnsfm_off_parent=up(BOTTOM_THICKNESS * 1.5 - EPS),
-#         )(),
-#         sphere(r=MINKOWSKI_RADIUS)
-#     )
+    
+    return minkowski()(
+        cylinder(r=MAT_RADIUS - MINKOWSKI_RADIUS, h=BOTTOM_THICKNESS, segments=CIRCLE_SEGMENTS, center=True),
+        sphere(r=MINKOWSKI_RADIUS)
+    )
 
-#     bottom = Shape(
-#         raw_shape = color([0.8, 0.8, 1], alpha=0.2)(cylinder(r=MAT_RADIUS + MIN_RING_HALF_WIDTH, h=BOTTOM_THICKNESS, segments=CIRCLE_SEGMENTS, center=True)),
-#         trnsfm_off_parent=up(BOTTOM_THICKNESS/2 - EPS),
-#     )
-
-#     return bottom_cutout() #+ bottom()
-
-# bottom = back(MAT_RADIUS)(
-#         get_bottom()
-# )
+bottom_cutout = center_on_yoga_mat()(
+    up(BOTTOM_THICKNESS + MINKOWSKI_RADIUS)(
+        get_bottom_cutout()
+    )
+)
 
 # MAT CUTOUT
 mat_cutout = center_on_yoga_mat() (
@@ -178,24 +174,29 @@ mat_pin = center_on_yoga_mat() (
 
 # ---------------- RENDERING ----------------
 ring_solid = ring
-cutouts = wall + floor_ + command_strip_cutout
-
-ring_solid -= cutouts
-
-#ring_solid += bottom
 
 
 ring_solid -= mat_cutout
-ring_solid += test_mat
+#ring_solid += test_mat
 
+if MAKE_BOTTOM:
+    ring_solid += bottom
+
+cutouts = wall + floor_ + command_strip_cutout
+ring_solid -= cutouts
+#ring_solid += bottom_cutout
 
 #ring_solid += back((MAT_RADIUS + RING_HALF_WIDTH)/2)(cube([50, MAT_RADIUS + RING_HALF_WIDTH, 50], center=True))
 #ring_solid += back((MAT_RADIUS + RING_HALF_WIDTH)/2)(cube([50, MAT_RADIUS, 100], center=True))
-ring_solid += mat_pin
+#ring_solid += mat_pin
 
 #ring_solid += test_mat
 
-with open(f'{RING_FILENAME}.scad', 'w') as f:
+filename = RING_FILENAME
+if MAKE_BOTTOM:
+    filename = BOTTOM_FILENAME
+
+with open(f'{filename}.scad', 'w') as f:
     f.write(scad_render(ring_solid))
 
-#subprocess.run(['C:\Program Files\OpenSCAD\openscad.com', '-o', f'{FILENAME}.stl', f'{FILENAME}.scad'])
+subprocess.run(['C:\Program Files\OpenSCAD\openscad.com', '-o', f'{filename}.stl', f'{filename}.scad'])
